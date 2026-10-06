@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laboratorio de Álgebra de Boole - Cofre Alienígena</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0d1117;color:#e6edf3}
+header{background:#161b22;color:white;padding:16px 22px;border-bottom:1px solid #30363d}
+header h1{margin:0 0 5px;font-size:25px;color:#a855f7}
+header p{margin:0;color:#8b949e}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;padding:12px;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0;z-index:20}
+button,select{font-size:15px;padding:9px 12px;border:1px solid #30363d;border-radius:8px;background:#21262d;color:#c9d1d9;cursor:pointer;transition:all 0.2s}
+button:hover{background:#30363d;color:#ffffff}
+button.primary{background:#8b5cf6;color:white;border-color:#8b5cf6}
+button.primary:hover{background:#7c3aed}
+button.danger{background:#dc2626;color:white;border-color:#dc2626}
+main{display:grid;grid-template-columns:210px minmax(480px,1fr) 350px;gap:12px;padding:12px;max-width:1600px;margin:auto}
+.panel{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px}
+.panel h2{font-size:17px;margin:3px 0 10px;color:#c9d1d9;border-bottom:1px solid #21262d;padding-bottom:6px}
+.gates{display:grid;gap:8px}
+.gateTool{padding:12px;border:2px solid #a855f7;border-radius:9px;background:#1a102f;color:#e9d5ff;text-align:center;font-weight:bold;cursor:grab;transition:transform 0.15s, box-shadow 0.15s}
+.gateTool:hover{transform:translateY(-2px);box-shadow:0 0 12px rgba(168,85,247,0.4)}
+.gateTool:active{cursor:grabbing}
+
+#workspace{position:relative;height:680px;overflow:hidden;background:
+linear-gradient(#21262d 1px,transparent 1px),
+linear-gradient(90deg,#21262d 1px,transparent 1px);
+background-size:25px 25px;border:2px solid #30363d;border-radius:10px}
+#svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.node{position:absolute;width:120px;background:#21262d;border:2px solid #484f58;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.5);user-select:none;color:#f0f6fc}
+.node.selected{border-color:#a855f7;box-shadow:0 0 0 3px rgba(168,85,247,0.4)}
+.nodeTitle{background:#30363d;padding:7px;text-align:center;font-weight:bold;border-radius:8px 8px 0 0;cursor:move;color:#e6edf3}
+.nodeBody{padding:8px;position:relative;height:50px;display:flex;align-items:center;justify-content:center}
+.port{width:16px;height:16px;border-radius:50%;border:2px solid #8b949e;background:#30363d;position:absolute;cursor:crosshair;z-index:3}
+.in1{left:-9px;top:8px}.in2{left:-9px;bottom:8px}.out{right:-9px;top:50%;transform:translateY(-50%)}
+.port.on{background:#22c55e;border-color:#15803d;box-shadow:0 0 8px #22c55e}
+.inputNode{width:105px}
+.inputNode .nodeBody{height:48px;text-align:center;font-size:22px;font-weight:bold;color:#38bdf8}
+.inputNode .toggle{position:absolute;inset:0;opacity:0;cursor:pointer}
+.outputNode{width:110px}
+.outputNode .nodeBody{text-align:center;font-size:22px;font-weight:bold;height:50px;color:#a855f7}
+.wire{stroke:#484f58;stroke-width:4;fill:none}
+.wire.on{stroke:#22c55e;stroke-width:6;filter:drop-shadow(0 0 6px #22c55e)}
+#info{font-size:13px;line-height:1.4;color:#8b949e}
+.status{padding:10px;border-radius:8px;background:#21262d;margin-top:8px;border:1px solid #30363d}
+.good{color:#4ade80;font-weight:bold}.bad{color:#f87171;font-weight:bold}
+
+/* Tabla de Verdad */
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+td,th{border:1px solid #30363d;padding:6px;text-align:center}
+th{background:#21262d;color:#a855f7}
+tr:nth-child(even){background:#161b22}
+tr:nth-child(odd){background:#0d1117}
+
+/* Gran Cofre Alienígena */
+.alien-chest-panel{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:radial-gradient(circle at center, #1b1035 0%, #090314 100%);
+  border-radius:16px;
+  border:2px solid #6b21a8;
+  margin-bottom:16px;
+  box-shadow:0 0 20px rgba(107, 33, 168, 0.3), inset 0 0 15px rgba(168, 85, 247, 0.15);
+  position:relative;
+  overflow:hidden;
+  transition:all 0.4s ease;
+}
+.alien-chest-panel::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(45deg, transparent 40%, rgba(34, 197, 94, 0.05) 50%, transparent 60%);
+  pointer-events:none;
+}
+.alien-chest-panel.open{
+  border-color:#22c55e;
+  box-shadow:0 0 35px rgba(34, 197, 94, 0.5), inset 0 0 25px rgba(34, 197, 94, 0.25);
+  background:radial-gradient(circle at center, #052e16 0%, #021208 100%);
+}
+
+.alien-chest-icon{
+  font-size:110px;
+  line-height:1;
+  margin:10px 0;
+  transition:all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  filter:grayscale(90%) opacity(0.5) drop-shadow(0 0 5px #000);
+  transform-origin:center center;
+  user-select:none;
+}
+.alien-chest-panel.open .alien-chest-icon{
+  filter:grayscale(0%) drop-shadow(0 0 25px #22c55e) drop-shadow(0 0 40px #a855f7);
+  opacity:1;
+  animation:alienPulse 1.8s infinite alternate ease-in-out;
+}
+
+@keyframes alienPulse {
+  0% { transform: scale(1.15) rotate(-2deg); }
+  100% { transform: scale(1.25) rotate(2deg); }
+}
+
+.alien-status-tag{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:2px;
+  color:#6b7280;
+  font-weight:bold;
+  margin-bottom:4px;
+}
+.alien-chest-panel.open .alien-status-tag{
+  color:#4ade80;
+  text-shadow:0 0 8px rgba(74, 222, 128, 0.6);
+}
+
+.alien-banner{
+  margin-top:12px;
+  padding:12px 16px;
+  border-radius:10px;
+  background:rgba(15, 23, 42, 0.8);
+  border:1px solid #334155;
+  text-align:center;
+  width:100%;
+  transition:all 0.4s ease;
+}
+.alien-chest-panel.open .alien-banner{
+  background:linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(168, 85, 247, 0.2));
+  border-color:#22c55e;
+  box-shadow:0 0 15px rgba(34, 197, 94, 0.3);
+}
+
+.alien-message{
+  font-size:14px;
+  font-weight:bold;
+  color:#94a3b8;
+  line-height:1.4;
+}
+.alien-chest-panel.open .alien-message{
+  color:#4ade80;
+  font-size:16px;
+  text-shadow:0 0 12px rgba(74, 222, 128, 0.8);
+  animation:glowText 1.5s infinite alternate;
+}
+
+@keyframes glowText {
+  from { text-shadow: 0 0 8px #22c55e, 0 0 16px #a855f7; }
+  to { text-shadow: 0 0 16px #22c55e, 0 0 28px #a855f7, 0 0 35px #38bdf8; }
+}
+
+/* Cofre del tesoro alienígena (SVG) */
+.chest-svg{width:230px;height:200px;overflow:visible;margin:6px 0;display:block}
+.chest-lid{transform-box:fill-box;transform-origin:0% 100%;transition:transform .8s cubic-bezier(.34,1.56,.64,1)}
+.alien-chest-panel.open .chest-lid{transform:rotate(-42deg) translate(-6px,-4px)}
+.chest-rays,.chest-interior{opacity:0;transition:opacity .6s ease .15s}
+.alien-chest-panel.open .chest-rays,.alien-chest-panel.open .chest-interior{opacity:1}
+.chest-loot{opacity:0;transform:translateY(34px);transition:transform .9s cubic-bezier(.34,1.56,.64,1) .25s,opacity .5s ease .25s}
+.alien-chest-panel.open .chest-loot{opacity:1;transform:translateY(0);animation:lootFloat 2s ease-in-out 1.2s infinite alternate}
+.chest-eye{fill:#64748b;transition:fill .4s}
+.alien-chest-panel.open .chest-eye{fill:#4ade80;filter:drop-shadow(0 0 4px #22c55e)}
+.chest-body-wrap{filter:grayscale(70%) brightness(.8);transition:filter .6s}
+.alien-chest-panel.open .chest-body-wrap{filter:drop-shadow(0 0 10px #22c55e)}
+@keyframes lootFloat{from{transform:translateY(0)}to{transform:translateY(-7px)}}
+#truth tr.cur td{background:#3b1d6e;color:#fff;font-weight:bold}
+#truth td.o1{color:#4ade80;font-weight:bold}
+#truth td.o0{color:#f87171}
+@media(max-width:1150px){main{grid-template-columns:180px 1fr 300px}}
+@media(max-width:900px){main{grid-template-columns:1fr}.left,.right{grid-column:auto}#workspace{height:550px}.toolbar{position:static}}
+</style>
+</head>
+<body>
+<header>
+<h1>🧠 Laboratorio Interactivo de Álgebra de Boole</h1>
+<p>Construye tus circuitos lógicos y desbloquea el Cofre Secreto Alienígena.</p>
+</header>
+
+<div class="toolbar">
+<select id="property">
+<option value="">Modo libre</option>
+<option value="identity">Identidad</option>
+<option value="domination">Dominación</option>
+<option value="idempotence">Idempotencia</option>
+<option value="complement">Complemento</option>
+<option value="commutative">Conmutativa</option>
+<option value="associative">Asociativa</option>
+<option value="distributive">Distributiva</option>
+<option value="absorption">Absorción</option>
+<option value="demorgan">De Morgan</option>
+</select>
+<button id="challenge" class="primary">🎯 Nuevo desafío</button>
+<button id="check">✓ Comprobar circuito</button>
+<button id="clear" class="danger">🗑 Limpiar</button>
+<button id="demo">▶ Ejemplo automático</button>
+</div>
+
+<main>
+<section class="panel left">
+<h2>🧩 Compuertas</h2>
+<div class="gates">
+<div class="gateTool" draggable="true" data-type="AND">AND</div>
+<div class="gateTool" draggable="true" data-type="OR">OR</div>
+<div class="gateTool" draggable="true" data-type="NOT">NOT</div>
+<div class="gateTool" draggable="true" data-type="NAND">NAND</div>
+<div class="gateTool" draggable="true" data-type="NOR">NOR</div>
+<div class="gateTool" draggable="true" data-type="XOR">XOR</div>
+<div class="gateTool" draggable="true" data-type="XNOR">XNOR</div>
+</div>
+<h2 style="margin-top:18px">💡 Instrucciones</h2>
+<div id="info">
+Arrastra una compuerta al tablero.<br><br>
+Haz clic en un puerto de salida y después en un puerto de entrada para conectarlos.<br><br>
+Haz doble clic en una compuerta para eliminarla.
+</div>
+<div id="formula" class="status" style="margin-top:15px;font-size:12px;">Modo libre</div>
+<div id="result" class="status" style="font-size:12px;">Esperando circuito...</div>
+</section>
+
+<section class="panel">
+<div id="workspace">
+<svg id="svg"></svg>
+</div>
+</section>
+
+<section class="panel right">
+<h2>🛸 COFRE SECRETO ALIENÍGENA</h2>
+<div id="alienPanel" class="alien-chest-panel">
+  <div id="alienTag" class="alien-status-tag">ESTADO: BLOQUEADO (0)</div>
+  <svg id="alienChest" class="chest-svg" viewBox="0 -30 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cofre del tesoro alienígena">
+    <defs>
+      <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b21b6"/><stop offset="1" stop-color="#2e1065"/></linearGradient>
+      <linearGradient id="gLid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#4c1d95"/></linearGradient>
+      <linearGradient id="gRay" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#4ade80" stop-opacity=".75"/><stop offset="1" stop-color="#4ade80" stop-opacity="0"/></linearGradient>
+    </defs>
+    <ellipse cx="100" cy="148" rx="82" ry="9" fill="#000" opacity=".45"/>
+    <polygon class="chest-rays" points="100,70 10,-30 190,-30" fill="url(#gRay)"/>
+    <rect class="chest-interior" x="36" y="62" width="128" height="14" rx="4" fill="#86efac"/>
+    <g class="chest-loot">
+      <text x="100" y="58" font-size="46" text-anchor="middle">👽</text>
+      <polygon points="52,66 60,52 68,66 60,74" fill="#22d3ee" stroke="#a5f3fc" stroke-width="1.5"/>
+      <polygon points="134,68 143,52 152,68 143,76" fill="#f0abfc" stroke="#fae8ff" stroke-width="1.5"/>
+      <circle cx="84" cy="68" r="7" fill="#facc15" stroke="#fef08a" stroke-width="1.5"/>
+      <circle cx="118" cy="69" r="7" fill="#facc15" stroke="#fef08a" stroke-width="1.5"/>
+      <text x="36" y="30" font-size="14">✨</text><text x="154" y="24" font-size="14">✨</text><text x="96" y="-4" font-size="14">⭐</text>
+    </g>
+    <g class="chest-body-wrap">
+      <rect x="30" y="70" width="140" height="74" rx="8" fill="url(#gBody)" stroke="#a855f7" stroke-width="3"/>
+      <rect x="30" y="92" width="140" height="8" fill="#22c55e" opacity=".55"/>
+      <rect x="52" y="70" width="10" height="74" fill="#a855f7" opacity=".5"/>
+      <rect x="138" y="70" width="10" height="74" fill="#a855f7" opacity=".5"/>
+      <circle cx="100" cy="102" r="15" fill="#1e1b4b" stroke="#facc15" stroke-width="3"/>
+      <ellipse class="chest-eye" cx="100" cy="102" rx="9" ry="5"/>
+      <circle cx="100" cy="102" r="2.6" fill="#052e16"/>
+      <g class="chest-lid">
+        <path d="M30 70 Q30 26 100 26 Q170 26 170 70 Z" fill="url(#gLid)" stroke="#a855f7" stroke-width="3"/>
+        <path d="M44 66 Q46 38 100 38" fill="none" stroke="#c4b5fd" stroke-width="2" opacity=".4"/>
+        <rect x="52" y="30" width="10" height="40" fill="#a855f7" opacity=".5"/>
+        <rect x="138" y="30" width="10" height="40" fill="#a855f7" opacity=".5"/>
+        <rect x="30" y="64" width="140" height="8" fill="#22c55e" opacity=".55"/>
+      </g>
+    </g>
+  </svg>
+  <div class="alien-banner">
+    <div id="alienMessage" class="alien-message">🔒 Cofre cerrado: la salida vale 0. Haz que la salida sea 1 para abrirlo.</div>
+  </div>
+</div>
+
+<h2>📋 TABLA DE VERDAD</h2>
+<div style="overflow:auto"><table id="truth"></table></div>
+
+<div id="challengeBox" class="challenge" style="display:none;margin-top:12px;background:#1e1b4b;border:1px solid #6366f1;color:#e0e7ff;padding:10px;border-radius:8px;"></div>
+</section>
+</main>
+
+<script>
+(() => {
+const ws=document.getElementById('workspace');
+const svg=document.getElementById('svg');
+const prop=document.getElementById('property');
+const formula=document.getElementById('formula');
+const result=document.getElementById('result');
+const truth=document.getElementById('truth');
+
+const alienPanel=document.getElementById('alienPanel');
+const alienChest=document.getElementById('alienChest');
+const alienTag=document.getElementById('alienTag');
+const alienMessage=document.getElementById('alienMessage');
+const challengeBox=document.getElementById('challengeBox');
+
+let nodes=[], wires=[], selected=null, wireStart=null, id=0;
+let values={A:1,B:0,C:1};
+
+let audioCtx=null;
+let isChestOpen=false;
+
+function initAudio(){
+  if(!audioCtx){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  }
+}
+
+// Efecto de sonido Sci-Fi / Haz de Plasma Alienígena al abrir
+function playAlienChestSound(){
+  initAudio();
+  if(audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const now = audioCtx.currentTime;
+
+  // Oscilador Principal de Plasma (Frecuencia Ascendente)
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, now);
+  osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
+  osc.frequency.exponentialRampToValueAtTime(1320, now + 0.7);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(400, now);
+  filter.frequency.linearRampToValueAtTime(3500, now + 0.5);
+
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.3, now + 0.1);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.85);
+
+  // Sub-oscilador armónico místico
+  const subOsc = audioCtx.createOscillator();
+  const subGain = audioCtx.createGain();
+  
+  subOsc.type = 'sine';
+  subOsc.frequency.setValueAtTime(523.25, now + 0.2); // Nota C5
+  subOsc.frequency.setValueAtTime(659.25, now + 0.4); // Nota E5
+  subOsc.frequency.setValueAtTime(783.99, now + 0.6); // Nota G5
+
+  subGain.gain.setValueAtTime(0, now + 0.2);
+  subGain.gain.linearRampToValueAtTime(0.25, now + 0.3);
+  subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+
+  subOsc.connect(subGain);
+  subGain.connect(audioCtx.destination);
+
+  subOsc.start(now + 0.2);
+  subOsc.stop(now + 0.95);
+}
+
+const properties={
+identity:"A + 0 = A   |   A · 1 = A",
+domination:"A + 1 = 1   |   A · 0 = 0",
+idempotence:"A + A = A   |   A · A = A",
+complement:"A + A′ = 1   |   A · A′ = 0",
+commutative:"A + B = B + A   |   A · B = B · A",
+associative:"(A+B)+C = A+(B+C)",
+distributive:"A·(B+C) = A·B + A·C",
+absorption:"A + A·B = A   |   A·(A+B) = A",
+demorgan:"(A+B)′ = A′·B′   |   (A·B)′ = A′+B′"
+};
+
+function gateValue(type,ins){
+ if(type==="AND") return ins.every(Boolean)?1:0;
+ if(type==="OR") return ins.some(Boolean)?1:0;
+ if(type==="NOT") return ins[0]?0:1;
+ if(type==="NAND") return ins.every(Boolean)?0:1;
+ if(type==="NOR") return ins.some(Boolean)?0:1;
+ if(type==="XOR") return (ins.filter(Boolean).length%2)?1:0;
+ if(type==="XNOR") return (ins.filter(Boolean).length%2)?0:1;
+ return 0;
+}
+
+function addNode(type,x,y){
+ const n={id:++id,type,x,y,value:0};
+ nodes.push(n);
+ render();
+ return n;
+}
+
+function addInput(name,x,y){
+ const n={id:++id,type:"INPUT",name,x,y,value:values[name]};
+ nodes.push(n); return n;
+}
+
+function addOutput(x,y){
+ const n={id:++id,type:"OUTPUT",x,y,value:0};
+ nodes.push(n); return n;
+}
+
+function nodeById(i){return nodes.find(n=>n.id===i)}
+
+function render(){
+ ws.querySelectorAll('.node').forEach(e=>e.remove());
+ nodes.forEach(n=>{
+   const el=document.createElement('div');
+   el.className='node '+(n.type==="INPUT"?'inputNode ':'')+(n.type==="OUTPUT"?'outputNode ':'')+(selected===n.id?'selected':'');
+   el.dataset.id=n.id;
+   if(n.type==="INPUT"){
+     el.innerHTML=`<div class="nodeTitle">${n.name}</div><div class="nodeBody">${n.value}<input class="toggle" type="button" aria-label="Cambiar ${n.name}"></div><span class="port out ${n.value?'on':''}" data-port="out"></span>`;
+   }else if(n.type==="OUTPUT"){
+     el.innerHTML=`<div class="nodeTitle">SALIDA</div><div class="nodeBody">${n.value}</div><span class="port in1 ${n.value?'on':''}" data-port="in"></span>`;
+   }else{
+     const two=n.type!=="NOT";
+     el.innerHTML=`<div class="nodeTitle">${n.type}</div><div class="nodeBody">${n.value}</div>
+       <span class="port in1" data-port="in1"></span>${two?'<span class="port in2" data-port="in2"></span>':''}
+       <span class="port out ${n.value?'on':''}" data-port="out"></span>`;
+   }
+   el.style.left=n.x+'px';el.style.top=n.y+'px';
+   el.addEventListener('dblclick',()=>removeNode(n.id));
+   const title=el.querySelector('.nodeTitle');
+   title.addEventListener('pointerdown',e=>dragNode(e,n,el));
+   el.querySelectorAll('.port').forEach(p=>p.addEventListener('pointerdown',e=>portDown(e,n,p)));
+   if(n.type==="INPUT") el.querySelector('.toggle').addEventListener('click',()=>{values[n.name]^=1;n.value=values[n.name];evaluate();render();});
+   ws.appendChild(el);
+ });
+ drawWires(); updateInfo();
+}
+
+function dragNode(e,n,el){
+ if(e.target.classList.contains('port'))return;
+ const r=ws.getBoundingClientRect(),sx=e.clientX,sy=e.clientY,ox=n.x,oy=n.y;
+ const move=ev=>{
+   n.x=Math.max(0,Math.min(ws.clientWidth-125,ox+ev.clientX-sx));
+   n.y=Math.max(0,Math.min(ws.clientHeight-75,oy+ev.clientY-sy));
+   el.style.left=n.x+'px';el.style.top=n.y+'px';drawWires();
+ };
+ const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up)};
+ document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+
+function portDown(e,n,p){
+ e.stopPropagation();
+ if(p.dataset.port==="out"){
+   wireStart=n;
+   selected=n.id;render();
+ }else if(wireStart){
+   if(wireStart.id!==n.id){
+     wires=wires.filter(w=>!(w.to===n.id && w.input===p.dataset.port));
+     wires.push({from:wireStart.id,to:n.id,input:p.dataset.port});
+     wireStart=null;selected=null;evaluate();render();
+   }
+ }
+}
+
+function removeNode(i){
+ wires=wires.filter(w=>w.from!==i&&w.to!==i);
+ nodes=nodes.filter(n=>n.id!==i);
+ selected=null;evaluate();render();
+}
+
+function portPos(n,port){
+ const el=ws.querySelector(`.node[data-id="${n.id}"] .port[data-port="${port}"]`);
+ if(!el)return{x:n.x,y:n.y};
+ const r=el.getBoundingClientRect(),w=ws.getBoundingClientRect();
+ return{x:r.left-w.left-ws.clientLeft+r.width/2,y:r.top-w.top-ws.clientTop+r.height/2};
+}
+
+function drawWires(){
+ while(svg.firstChild)svg.removeChild(svg.firstChild);
+ wires.forEach(w=>{
+   const a=nodeById(w.from),b=nodeById(w.to);if(!a||!b)return;
+   const p1=portPos(a,"out"),p2=portPos(b,w.input);
+   const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+   const mx=(p1.x+p2.x)/2;
+   path.setAttribute("d",`M ${p1.x} ${p1.y} C ${mx} ${p1.y}, ${mx} ${p2.y}, ${p2.x} ${p2.y}`);
+   path.setAttribute("class","wire "+(a.value?'on':''));
+   svg.appendChild(path);
+ });
+}
+
+/* Evalúa el circuito SIN modificar los nodos (función pura).
+   Una compuerta con alguna entrada sin conectar da 0 (circuito incompleto),
+   y un ciclo (retroalimentación) también da 0. */
+function solve(vals){
+ const memo=new Map(),visiting=new Set();
+ function calc(n){
+   if(memo.has(n.id))return memo.get(n.id);
+   if(visiting.has(n.id))return 0;
+   visiting.add(n.id);
+   let v;
+   if(n.type==="INPUT"){
+     v=vals[n.name]?1:0;
+   }else{
+     const incoming=wires.filter(w=>w.to===n.id);
+     const get=key=>{
+       const w=incoming.find(x=>x.input===key);
+       const src=w?nodeById(w.from):null;
+       return src?calc(src):null;
+     };
+     if(n.type==="OUTPUT"){
+       const x=get("in");v=x===null?0:x;
+     }else if(n.type==="NOT"){
+       const a=get("in1");v=a===null?0:gateValue("NOT",[a]);
+     }else{
+       const a=get("in1"),b=get("in2");
+       v=(a===null||b===null)?0:gateValue(n.type,[a,b]);
+     }
+   }
+   visiting.delete(n.id);memo.set(n.id,v);return v;
+ }
+ nodes.forEach(calc);
+ return memo;
+}
+
+function evaluate(){
+ const m=solve(values);
+ nodes.forEach(n=>{n.value=m.get(n.id)||0});
+ updateAlienChest();
+ updateTruth();
+}
+
+function updateAlienChest(){
+ const out=nodes.find(n=>n.type==="OUTPUT");
+ const outputVal=out?out.value:0;
+ if(outputVal===1){
+   if(!isChestOpen){playAlienChestSound();isChestOpen=true;}
+   alienPanel.classList.add('open');
+   alienTag.textContent="ESTADO: ABIERTO (1)";
+   alienMessage.textContent='🎉 ¡FELICIDADES! 5.0 EN TEORÍA DE CONJUNTOS 🎉';
+ }else{
+   isChestOpen=false;
+   alienPanel.classList.remove('open');
+   alienTag.textContent="ESTADO: BLOQUEADO (0)";
+   alienMessage.textContent='🔒 Cofre cerrado: la salida vale 0. Haz que la salida sea 1 para abrirlo.';
+ }
+}
+
+function updateTruth(){
+ const out=nodes.find(n=>n.type==="OUTPUT");
+ let h='<tr><th>A</th><th>B</th><th>C</th><th>Salida</th></tr>';
+ for(let A=0;A<2;A++)for(let B=0;B<2;B++)for(let C=0;C<2;C++){
+   const m=solve({A,B,C});
+   const o=out?m.get(out.id):0;
+   const cur=(A===values.A&&B===values.B&&C===values.C)?' class="cur"':'';
+   h+=`<tr${cur}><td>${A}</td><td>${B}</td><td>${C}</td><td class="o${o}">${o}</td></tr>`;
+ }
+ truth.innerHTML=h;
+}
+
+function updateInfo(){
+ formula.textContent=prop.value?properties[prop.value]:"Modo libre: construye cualquier circuito.";
+}
+
+function clearAll(){
+ nodes=[];wires=[];selected=null;wireStart=null;
+ 
+ // Posición limpia e inicializada de los puertos
+ addInput("A",30,60);
+ addInput("B",30,220);
+ addInput("C",30,380);
+ addOutput(460,220);
+ 
+ evaluate();render();
+}
+
+document.querySelectorAll('.gateTool').forEach(t=>{
+ t.addEventListener('dragstart',e=>e.dataTransfer.setData('type',t.dataset.type));
+});
+
+ws.addEventListener('dragover',e=>e.preventDefault());
+ws.addEventListener('drop',e=>{
+ e.preventDefault();const type=e.dataTransfer.getData('type');if(!type)return;
+ const r=ws.getBoundingClientRect();addNode(type,Math.max(150,e.clientX-r.left-60),Math.max(20,e.clientY-r.top-30));evaluate();render();
+});
+
+document.getElementById('clear').onclick=clearAll;
+prop.onchange=()=>{updateInfo();challengeBox.style.display=prop.value?'block':'none';challengeBox.textContent=prop.value?'Construye un circuito que represente: '+properties[prop.value]:''};
+document.getElementById('check').onclick=()=>{
+ const out=nodes.find(n=>n.type==="OUTPUT");
+ if(!out){result.innerHTML='<span class="bad">Agrega una salida.</span>';return}
+ evaluate();
+ const hasGate=nodes.some(n=>!["INPUT","OUTPUT"].includes(n.type));
+ if(hasGate&&wires.length)result.innerHTML='<span class="good">✓ Circuito conectado.</span><br>Salida = '+out.value;
+ else result.innerHTML='<span class="bad">Conecta al menos una compuerta y una salida.</span>';
+};
+
+document.getElementById('challenge').onclick=()=>{
+ const keys=Object.keys(properties),k=keys[Math.floor(Math.random()*keys.length)];
+ prop.value=k;challengeBox.style.display='block';challengeBox.textContent='🎯 DESAFÍO: demuestra construyendo el circuito → '+properties[k];updateInfo();
+};
+
+document.getElementById('demo').onclick=()=>{
+ clearAll();
+ const and=addNode("AND",200,100),or=addNode("OR",200,270);
+ const out=nodes.find(n=>n.type==="OUTPUT");
+ if(out){ out.x=460; out.y=220; }
+ const A=nodes.find(n=>n.name==="A"),B=nodes.find(n=>n.name==="B"),C=nodes.find(n=>n.name==="C");
+ wires=[
+   {from:A.id,to:and.id,input:"in1"},
+   {from:B.id,to:and.id,input:"in2"},
+   {from:and.id,to:or.id,input:"in1"},
+   {from:C.id,to:or.id,input:"in2"},
+   {from:or.id,to:out.id,input:"in"}
+ ];
+ evaluate();render();
+ result.innerHTML='Ejemplo: <b>(A · B) + C</b>';
+};
+
+clearAll();
+})();
+</script>
+</body>
+</html>
